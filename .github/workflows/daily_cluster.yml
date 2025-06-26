@@ -1,0 +1,28 @@
+name: Cluster GBPUSD - Daily Execution
+
+on:
+  schedule:
+    - cron: '45 10 * * *'   # ⏰ 10h45 UTC = 12h45 Paris
+  workflow_dispatch:       # ↪️ Permet aussi de lancer manuellement
+
+jobs:
+  run-cluster:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Cloner le repo
+      uses: actions/checkout@v3
+
+    - name: Configurer Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Installer les dépendances
+      run: pip install -r requirements.txt
+
+    - name: Exécuter le script
+      env:
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: python clustergbpusd.py
