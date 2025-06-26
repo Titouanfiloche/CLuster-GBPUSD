@@ -194,4 +194,9 @@ if __name__ == "__main__":
         f"Cluster 1 (range, piégeux) : {proba[1]}%\n"
         f"Cluster 2 (directionnel) : {proba[2]}%\n"
     )
+    annonces, annonces_post_13h = get_calendar_announcements()
+    print(f"[DEBUG] Annonces majeures aujourd’hui : {len(annonces)} | Après 13h UTC : {len(annonces_post_13h)}")
+    for a in annonces_post_13h:
+        print(f"- {a['event']} ({a['country']}) à {a['time'].strftime('%H:%M')} [{a['source']}]")
+
     send_telegram_message(message)
