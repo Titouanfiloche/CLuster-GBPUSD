@@ -117,7 +117,7 @@ def scraper_investing():
     events = []
     rows = soup.select("tr.js-event-item")
     for row in rows:
-    try:
+        try:
     impact_icons = row.select("td[class*='sentiment'] i.fullStarIcon")
     if len(impact_icons) < 3:
         continue
