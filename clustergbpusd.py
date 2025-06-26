@@ -57,7 +57,7 @@ def scraper_forexfactory():
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
 
-   events = []
+    events = []
 
 for row in soup.select("tr.calendar__row"):
     try:
