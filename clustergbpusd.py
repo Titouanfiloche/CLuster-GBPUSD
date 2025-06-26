@@ -18,6 +18,12 @@ TELEGRAM_TOKEN = "7614952417:AAGoqLBNgsBl1ZNZOLUdEuZAe9CMZPVxGb4"
 TELEGRAM_CHAT_ID = "1088487103"
 
 # === FONCTIONS ===
+def convert_to_24h_format(time_str):
+    try:
+        return dt.datetime.strptime(time_str.strip().lower(), "%I:%M%p").time()
+    except:
+        return None
+        
 def get_volatility(symbol, interval="1min", window=180):
     url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize={window}&apikey={API_KEY_TWELVE}"
     r = requests.get(url).json()
@@ -51,49 +57,52 @@ def scraper_forexfactory():
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    events = []
-    for row in soup.select("tr.calendar__row"):
-        try:
-            time_cell = row.select_one(".calendar__time")
-            country_cell = row.select_one(".calendar__flag")
-            impact_cell = row.select_one(".impact span")
-            event_cell = row.select_one(".calendar__event")
+   events = []
 
-            time_str = time_cell.text.strip()
-            country = country_cell['title'].strip()
-            impact = impact_cell['title'].strip()
-            title = event_cell.text.strip()
-
-            if impact != "High":
-                continue
-            if country not in ["United States", "United Kingdom", "European Union"]:
-                continue
-            if time_str.lower() in ["all day", "tentative", ""]:
-                continue
-
-            today = dt.datetime.now(pytz.UTC).strftime("%Y-%m-%d")
-            full_time = f"{today} {time_str}"
-            try:
-                time_obj = dt.datetime.strptime(full_time, "%Y-%m-%d %I:%M%p").replace(tzinfo=pytz.UTC)
-            except:
-                try:
-                    time_obj = dt.datetime.strptime(full_time, "%Y-%m-%d %H:%M").replace(tzinfo=pytz.UTC)
-                except:
-                    continue
-
-            events.append({
-                "source": "ForexFactory",
-                "impact": impact,
-                "country": country,
-                "event": title,
-                "time": time_obj
-            })
-        except:
+for row in soup.select("tr.calendar__row"):
+    try:
+        impact_td = row.select_one(".calendar__impact")
+        if not impact_td or "high" not in str(impact_td).lower():
             continue
 
+        country_icon = row.select_one(".calendar__flag")
+        country = country_icon["title"].strip() if country_icon else ""
+        if country not in ["USD", "EUR", "GBP"]:
+            continue
+
+        title_cell = row.select_one(".calendar__event")
+        title = title_cell.get_text(strip=True) if title_cell else ""
+
+        time_cell = row.select_one(".calendar__time")
+        time_str = time_cell.get_text(strip=True).lower() if time_cell else ""
+        if time_str in ["all day", "tentative", ""]:
+            continue
+
+        # Convertir l'heure en format 24h UTC
+        today = dt.datetime.now(pytz.UTC).date()
+        converted_time = convert_to_24h_format(time_str)
+        if converted_time is None:
+            try:
+                converted_time = dt.datetime.strptime(time_str.strip(), "%H:%M").time()
+            except:
+                continue
+
+        time_obj = dt.datetime.combine(today, converted_time).replace(tzinfo=pytz.UTC)
+
+        events.append({
+            "source": "ForexFactory",
+            "impact": "High",
+            "country": country,
+            "event": title,
+            "time": time_obj
+        })
+
+    except Exception as e:
+        print(f"[ERREUR PARSING LIGNE ForexFactory] {e}")
+        continue
+           
     after_13h = [e for e in events if e["time"].hour >= 13]
     return events, after_13h
-
 
 def scraper_investing():
     url = "https://www.investing.com/economic-calendar/"
@@ -108,33 +117,43 @@ def scraper_investing():
     events = []
     rows = soup.select("tr.js-event-item")
     for row in rows:
-        try:
-            country = row.get("data-country", "").strip()
-            impact_level = len(row.select(".grayFullBullishIcon"))
-            title = row.select_one(".event").text.strip()
-            time_str = row.select_one(".first.left.time").text.strip()
+    try:
+    impact_icons = row.select("td[class*='sentiment'] i.fullStarIcon")
+    if len(impact_icons) < 3:
+        continue
+    impact = "High"
 
-            if impact_level < 3:
-                continue
-            if country not in ["United Kingdom", "United States", "European Union"]:
-                continue
+    country_cell = row.select_one("td.flagCur span")
+    country = country_cell.text.strip() if country_cell else ""
+    if country not in ["USD", "EUR", "GBP"]:
+        continue
+        
+    title_cell = row.select_one("td.event")
+    title = title_cell.text.strip() if title_cell else ""
 
-            today = dt.datetime.now(pytz.UTC).strftime("%Y-%m-%d")
-            full_time = f"{today} {time_str}"
-            try:
-                time_obj = dt.datetime.strptime(full_time, "%Y-%m-%d %H:%M").replace(tzinfo=pytz.UTC)
-            except:
-                continue
+    time_cell = row.select_one("td.time")
+    time_str = time_cell.text.strip()
+    if time_str.lower() in ["all day", "tentative", ""]:
+        continue
+            
+    today = dt.datetime.now(pytz.UTC).date()
+    try:
+        converted_time = dt.datetime.strptime(time_str, "%H:%M").time()
+    except:
+        continue
+               
+    time_obj = dt.datetime.strptime(full_time, "%Y-%m-%d %H:%M").replace(tzinfo=pytz.UTC)
 
-            events.append({
-                "source": "Investing",
-                "impact": "High",
-                "country": country,
-                "event": title,
-                "time": time_obj
-            })
-        except:
-            continue
+    events.append({
+        "source": "Investing",
+        "impact": "High",
+        "country": country,
+        "event": title,
+        "time": time_obj
+    })
+    except Exception as e:
+        print(f"[ERREUR PARSING Investing] {e}")
+        continue
 
     after_13h = [e for e in events if e["time"].hour >= 13]
     return events, after_13h
