@@ -1,4 +1,4 @@
-name: Cluster GBPUSD - Daily Execution
+name: clustergbpusd - Daily Execution
 
 on:
   schedule:
