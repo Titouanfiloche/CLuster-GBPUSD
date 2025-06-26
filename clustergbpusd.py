@@ -180,7 +180,7 @@ def determine_cluster():
     annonces, annonces_post_13h = get_calendar_announcements()
     print(f"[DEBUG] Annonces majeures aujourd’hui : {len(annonces)} | Après 13h UTC : {len(annonces_post_13h)}")
     for a in annonces_post_13h:
-    print(f"- {a['title']} ({a['country']}) à {a['time']}")
+        print(f"- {a['title']} ({a['country']}) à {a['time']}")
     nb_annonces = len(annonces)
     only_post_13h = len(annonces_post_13h) == nb_annonces
 
